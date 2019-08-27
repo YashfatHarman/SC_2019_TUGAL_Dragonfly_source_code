@@ -102,8 +102,7 @@ int vlb_imdt_node_for_three_hop_paths(const Flit *f, int src_router, int dst_rou
 
 // vlb_imdt_node_for_five_hop_paths_src_and_dst() takes the union of neighbors that are
 // two-hop away from the src or the dst, as i-nodes. So the number of paths
-// will be increased in this case. That might be good or bad.
-// We can flip between these two to see which one work better.
+// will be increased in this case. 
 
 
 int vlb_imdt_node_for_five_hop_paths_src_only(const Flit *f, int src_router, int dst_router);
@@ -132,10 +131,7 @@ int find_port_queue_len_to_node(const Router *r, int current_router, int next_ro
 
 int generate_in_group_vlb_paths(const Flit *f, int src_router, int dst_router, int no_of_nodes_to_generate, std::vector< std::vector<int> >::iterator start, std::vector< std::vector<int> >::iterator finish);
 
-//for multi-tiered routing
-int generate_multitiered_imdt_node(const Flit *f, int src_router, int dst_router, int min_q_len, int &chosen_tier);
 
-int generate_multitiered_imdt_node_four_vs_five(const Flit *f, int src_router, int dst_router, int min_q_len, int &chosen_tier);
 
 /*
 PAR routing

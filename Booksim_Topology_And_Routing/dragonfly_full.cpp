@@ -62,14 +62,7 @@ g_link_widths[0][5] = 2 means the width of the link between node 0 and its
                         
 These two arrays could've been glued together, but I think this is cleaner.
 
-Old:
-//g_port_map: a vector of map that uses the dest node as key and [start_port, end_port]
-//            struct as value.
-            
-//so g_port_map[0][5] = (5,6) means node 0 is connected to node 5, and there are
-            two output ports, ports 5 and 6, from node 0 to 5.
 
-update:
 g_port_map: a unordered_map that uses the (src,dest) pair as key and 
             [start_port, end_port] pair as value.
             
@@ -91,8 +84,6 @@ int g_h;
 int g_p;
 int g_N;
 int g_threshold;
-int g_multitiered_routing_threshold_0;
-int g_multitiered_routing_threshold_1;
 int g_log_Qlen_data;
 
 #define LOCAL_LINK_WEIGHT 1
@@ -180,9 +171,7 @@ DragonFlyFull::DragonFlyFull(const Configuration &config, const string &name) : 
 
     _five_hop_percentage = config.GetInt("five_hop_percentage");
 
-    g_multitiered_routing_threshold_0 = config.GetInt("multitiered_routing_threshold_0");
-    g_multitiered_routing_threshold_1 = config.GetInt("multitiered_routing_threshold_1");
-
+ 
     g_log_Qlen_data = config.GetInt("log_Qlen_data");
     
     g_vc_allocation_mode = config.GetStr("vc_allocation_mode");
@@ -232,8 +221,6 @@ DragonFlyFull::DragonFlyFull(const Configuration &config, const string &name) : 
     
     // cout << "Routing threshold: " << _threshold << endl;
 
-    // cout << "multitiered_routing_threshold_0: " << g_multitiered_routing_threshold_0 << endl;
-    // cout << "multitiered_routing_threshold_1: " << g_multitiered_routing_threshold_1 << endl;
 
 
 
@@ -265,8 +252,7 @@ DragonFlyFull::DragonFlyFull(const Configuration &config, const string &name) : 
     int min_q_len = 55; 
     Flit * f  = Flit::New();
 
-    //generate_multitiered_imdt_node(f, src_router, dst_router, min_q_len);
-
+ 
     exit(-1);*/
 }
 
@@ -358,18 +344,18 @@ void DragonFlyFull::_setRoutingMode(){
     
     //possible supported routings: 
         //min/ vlb/ UGAL_L/ UGAL_L_two_hop / UGAL_L_threshold/
-        //UGAL_L_multi_tiered // PAR
-    if ((_routing == "UGAL_G") || (_routing == "UGAL_G_restricted_src_only") || (_routing == "UGAL_G_restricted_src_and_dst") || (_routing == "UGAL_G_four_hop_restricted") || (_routing == "UGAL_G_multi_tiered_four_vs_five") || (_routing == "UGAL_G_multi_tiered")|| (_routing == "UGAL_G_four_hop_some_five_hop_restricted") || (_routing == "UGAL_G_three_hop_restricted")){
+        // PAR
+    if ((_routing == "UGAL_G") || (_routing == "UGAL_G_restricted_src_only") || (_routing == "UGAL_G_restricted_src_and_dst") || (_routing == "UGAL_G_four_hop_restricted") || (_routing == "UGAL_G_four_hop_some_five_hop_restricted") || (_routing == "UGAL_G_three_hop_restricted")){
         g_ugal_local_vs_global_switch = "global";
 
-    } else if ( (_routing == "UGAL_L")  || (_routing == "UGAL_L_two_hop") || (_routing == "UGAL_L_restricted_src_only") || (_routing == "UGAL_L_restricted_src_and_dst") || (_routing == "UGAL_L_threshold") || (_routing == "UGAL_L_multi_tiered") || (_routing == "PAR_multi_tiered") || (_routing == "UGAL_L_four_hop_restricted") || (_routing == "UGAL_L_multi_tiered_four_vs_five") || (_routing == "UGAL_L_four_hop_some_five_hop_restricted") || (_routing == "UGAL_L_three_hop_restricted") || (_routing == "PAR") || (_routing == "PAR_restricted_src_only") || (_routing == "PAR_restricted_src_and_dst") || (_routing == "PAR_four_hop_restricted")|| (_routing == "PAR_four_hop_some_five_hop_restricted") || (_routing == "PAR_three_hop_restricted") ) {
+    } else if ( (_routing == "UGAL_L")  || (_routing == "UGAL_L_two_hop") || (_routing == "UGAL_L_restricted_src_only") || (_routing == "UGAL_L_restricted_src_and_dst") || (_routing == "UGAL_L_threshold")   || (_routing == "UGAL_L_four_hop_restricted") ||  (_routing == "UGAL_L_four_hop_some_five_hop_restricted") || (_routing == "UGAL_L_three_hop_restricted") || (_routing == "PAR") || (_routing == "PAR_restricted_src_only") || (_routing == "PAR_restricted_src_and_dst") || (_routing == "PAR_four_hop_restricted")|| (_routing == "PAR_four_hop_some_five_hop_restricted") || (_routing == "PAR_three_hop_restricted") ) {
         g_ugal_local_vs_global_switch = "local";
 
     } else{
         g_ugal_local_vs_global_switch = "not_applicable";
     }
 
-    //possible modes: vanilla, two_hop, threshold, multi_tiered, not_applicable
+    //possible modes: vanilla, two_hop, threshold,  not_applicable
 
     if ((_routing == "vlb") || (_routing == "UGAL_L") || (_routing == "UGAL_G") || (_routing == "PAR")) {
         g_routing_mode = "vanilla";
@@ -395,12 +381,7 @@ void DragonFlyFull::_setRoutingMode(){
     else if (_routing == "UGAL_L_threshold"){
         g_routing_mode = "threshold";    
     }
-    else if ((_routing == "UGAL_L_multi_tiered") || (_routing == "UGAL_G_multi_tiered") || (_routing == "PAR_multi_tiered")){
-        g_routing_mode = "multi_tiered";    
-    }
-    else if ((_routing == "UGAL_L_multi_tiered_four_vs_five") || (_routing == "UGAL_G_multi_tiered_four_vs_five")){
-        g_routing_mode = "multi_tiered_four_vs_five";    
-    }
+  
     else{
         g_routing_mode = "not_applicable";    
     }
@@ -541,7 +522,7 @@ void DragonFlyFull::_BuildNet(const Configuration &config){
                 
                 
                 //Instead of controlling the latency through preprocessor derectives, control them with parameters.
-                //Will beeasier to control from testsripts.
+                //Will be easier to control from testsripts.
 
                 //#ifdef DRAGON_LATENCY
                 
@@ -1140,10 +1121,7 @@ void DragonFlyFull :: RegisterRoutingFunctions(){
         
 
     gRoutingFunctionMap["UGAL_L_threshold_dragonflyfull"] = &UGAL_dragonflyfull;
-    gRoutingFunctionMap["UGAL_L_multi_tiered_dragonflyfull"] = &UGAL_dragonflyfull;
-
-    gRoutingFunctionMap["UGAL_L_multi_tiered_four_vs_five_dragonflyfull"] = &UGAL_dragonflyfull;
-
+    
     gRoutingFunctionMap["UGAL_L_four_hop_some_five_hop_restricted_dragonflyfull"] = &UGAL_dragonflyfull;
     
     gRoutingFunctionMap["UGAL_G_dragonflyfull"] = &UGAL_dragonflyfull;
@@ -1158,13 +1136,10 @@ void DragonFlyFull :: RegisterRoutingFunctions(){
     gRoutingFunctionMap["UGAL_G_three_hop_restricted_dragonflyfull"] = &UGAL_dragonflyfull;
     
 
-    gRoutingFunctionMap["UGAL_G_multi_tiered_four_vs_five_dragonflyfull"] = &UGAL_dragonflyfull;    
-    gRoutingFunctionMap["UGAL_G_multi_tiered_dragonflyfull"] = &UGAL_dragonflyfull;
     gRoutingFunctionMap["UGAL_G_four_hop_some_five_hop_restricted_dragonflyfull"] = &UGAL_dragonflyfull;
 
 
     gRoutingFunctionMap["PAR_dragonflyfull"] = &PAR_dragonflyfull;
-    gRoutingFunctionMap["PAR_multi_tiered_dragonflyfull"] = &PAR_dragonflyfull;
     gRoutingFunctionMap["PAR_restricted_src_only_dragonflyfull"] = &PAR_dragonflyfull;
     gRoutingFunctionMap["PAR_restricted_src_and_dst_dragonflyfull"] = &PAR_dragonflyfull;
     gRoutingFunctionMap["PAR_four_hop_restricted_dragonflyfull"] = &PAR_dragonflyfull;
@@ -2972,11 +2947,9 @@ void UGAL_dragonflyfull( const Router *r, const Flit *f, int in_channel, OutputS
 int allocate_vc(const Flit *f, int prev_router, int current_router, int next_router, int current_vc){
     
     // Previously we just used incremental VC allocation. That got us burned in
-    // SC. So finally writing a function to optimize VC allocation that avoids
+    // Valhalla. So finally writing a function to optimize VC allocation that avoids
     // any potential deadlocks. 
-    
-
-    
+       
     // Logic:
     // If packet in src_router: vc -> 0
 
@@ -3454,7 +3427,7 @@ int select_UGAL_path( const Router *r, const Flit *f, int src_router, int dst_ro
         for(ii = 0; ii < no_of_VLB_paths_to_consider; ii++){
 
 
-            if ((routing_mode == "multi_tiered") || (g_routing_mode == "restricted_src_only") || (g_routing_mode == "restricted_src_and_dst") || ( routing_mode == "four_hop_restricted") || ( routing_mode == "three_hop_restricted") || ( routing_mode == "multi_tiered_four_vs_five") || ( routing_mode == "four_hop_some_five_hop_restricted")){
+            if ((g_routing_mode == "restricted_src_only") || (g_routing_mode == "restricted_src_and_dst") || ( routing_mode == "four_hop_restricted") || ( routing_mode == "three_hop_restricted")  || ( routing_mode == "four_hop_some_five_hop_restricted")){
            
                 //generate djkstra paths
                 generate_vlb_path_from_given_imdt_node(src_router, dst_router, imdt_nodes[ii], paths[ii+no_of_MIN_paths_to_consider], "djkstra");
@@ -3601,7 +3574,7 @@ int generate_imdt_nodes(const Flit *f, int src_router, int dst_router, int no_of
         cout << "routing mode: " << routing_mode << endl;
     }    
 
-    //routing modes: vanilla_ugal, two_hop, threshold, multi_tiered, not_applicable
+    //routing modes: vanilla_ugal, two_hop, threshold,  not_applicable
     for(ii = 0; ii < no_of_nodes_to_generate; ii++){
         while( (imdt_node == -1) || ( node_cache.find(imdt_node) != node_cache.end() ) ){
 
@@ -3668,28 +3641,8 @@ int generate_imdt_nodes(const Flit *f, int src_router, int dst_router, int no_of
                 }
                 
             }
-            else if(routing_mode == "multi_tiered"){
-                imdt_node = generate_multitiered_imdt_node(f, src_router, dst_router, min_q_len, chosen_tier);
-                    //value of chosen_tier will be changed here as it is passed
-                    //by reference
-
-                if (flag){
-                    cout << "intermediate node generator function returned: " << imdt_node << endl;
-                    cout << "the chosen tier was: " << chosen_tier << endl; 
-                }
-            }
-
-            else if(routing_mode == "multi_tiered_four_vs_five"){
-                imdt_node = generate_multitiered_imdt_node_four_vs_five(f, src_router, dst_router, min_q_len, chosen_tier);
-                    //value of chosen_tier will be changed here as it is passed
-                    //by reference
-
-                if (flag){
-                    cout << "intermediate node generator function returned: " << imdt_node << endl;
-                    cout << "the chosen tier was: " << chosen_tier << endl; 
-                }
-            }
-
+            
+            
             else{
                 cout << "Error! Unsupported routing_mode: " << routing_mode << " ! Exiting." << endl;
                 exit(-1);
@@ -3704,148 +3657,8 @@ int generate_imdt_nodes(const Flit *f, int src_router, int dst_router, int no_of
 
 }
 
-int generate_multitiered_imdt_node(const Flit *f, int src_router, int dst_router, int min_q_len, int &chosen_tier){
-    /*
-    
-    Chooses an intermeaidate node from a pool of available nodes.
-    The pool changes depending on min_q_len.
-
-    chosen_tier is used to return the selected mode. For stat collection only.
-
-    */
-    
-    /*
-    Currently we consider three tiers, so we need two threshold values.
-    
-    The tiers are:
-        - nonmin paths with pathlen <= 4
-        - nonmin paths with pathlen == 5
-        - nonmin paths with pathlen == 6
-    
-    There might be non-min paths with len 2 and 3, but their number will be very limited.
-    So bundling them altogther as paths <= 4.
-    
-    */
-    
-    bool flag = false;
-
-    if(f->id == FLIT_TO_TRACK){
-        flag = true;
-    }
-
-    int selected_imdt_node;
 
 
-    std::vector<int> imdt_nodes;
-    
-    if (min_q_len <= g_multitiered_routing_threshold_0){
-        // case <= 4
-        // cout << "case 4 for flit : " << f->id << endl;
-        
-        if(flag){
-            cout << "min_q_len " << min_q_len << " < g_multitiered_routing_threshold_0" << endl;
-        }
-        //selected_imdt_node = vlb_imdt_node_for_four_hop_paths_old(f, src_router, dst_router);
-        selected_imdt_node = vlb_imdt_node_for_four_hop_paths(f, src_router, dst_router);
-        
-        chosen_tier = 4;
-
-    }
-    else if (min_q_len <= g_multitiered_routing_threshold_1){
-        //case == 5
-        // cout << "case 5 for flit : " << f->id << endl;
-        if(flag){
-            cout << "min_q_len " << min_q_len << " < g_multitiered_routing_threshold_1" << endl;
-        }
-        selected_imdt_node = vlb_imdt_node_for_five_hop_paths_src_only(f, src_router, dst_router);
-        chosen_tier = 5;
-    }
-    else{
-        //case == 6
-        //cout << "tier 6: " << endl;
-        // cout << "case 6 for flit : " << f->id << endl;
-        if(flag){
-            cout << "min_q_len " << min_q_len << " > g_multitiered_routing_threshold_1" << endl;
-        }
-        selected_imdt_node = vlb_intermediate_node_vanilla(f, src_router, dst_router);
-        chosen_tier = 6;
-    }
-
-    //cout << "selected_imdt_node: " << selected_imdt_node << endl; 
-    if (flag){
-        cout << "chosen_tier: " << chosen_tier << endl;
-        cout << "selected_imdt_node: " << selected_imdt_node << endl;        
-    }
-
-    return selected_imdt_node;
-}
-
-
-
-int generate_multitiered_imdt_node_four_vs_five(const Flit *f, int src_router, int dst_router, int min_q_len, int &chosen_tier){
-
-    /*
-    Multi-tiered version of the restricted non-min routing.
-    
-    Chooses an intermeaidate node from a pool of available nodes.
-    The pool changes depending on min_q_len.
-
-    chosen_tier is used to return the selected mode. For stat collection only.
-
-    */
-    
-    /*
-    Currently we consider two tiers, so we need one threshold values.
-    
-    The tiers are:
-        - nonmin paths with pathlen <= 4
-        - nonmin paths with pathlen == 5
-    
-    There might be non-min paths with len 2 and 3, but their number will be very limited.
-    So bundling them altogther as paths <= 4.
-    
-    */
-    
-    bool flag = false;
-
-    if(f->id == FLIT_TO_TRACK){
-        flag = true;
-    }
-
-    int selected_imdt_node;
-
-    std::vector<int> imdt_nodes;
-    
-    if (min_q_len <= g_multitiered_routing_threshold_0){
-        // case <= 4
-        // cout << "case 4 for flit : " << f->id << endl;
-        
-        if(flag){
-            cout << "min_q_len " << min_q_len << " < g_multitiered_routing_threshold_0" << endl;
-        }
-        selected_imdt_node = vlb_imdt_node_for_four_hop_paths(f, src_router, dst_router);
-        chosen_tier = 4;
-
-    }
-    else {
-        //case == 5
-        // cout << "case 5 for flit : " << f->id << endl;
-        if(flag){
-            cout << "min_q_len " << min_q_len << " > g_multitiered_routing_threshold_0" << endl;
-        }
-        selected_imdt_node = vlb_imdt_node_for_five_hop_paths_src_only(f, src_router, dst_router);
-        chosen_tier = 5;
-    }
-    
-    //cout << "selected_imdt_node: " << selected_imdt_node << endl; 
-    if (flag){
-        cout << "chosen_tier: " << chosen_tier << endl;
-        cout << "selected_imdt_node: " << selected_imdt_node << endl;        
-    }
-
-    return selected_imdt_node;
-
-}
 
 int vlb_imdt_node_for_four_hop_paths_old(const Flit *f, int src_router, int dst_router){
 
